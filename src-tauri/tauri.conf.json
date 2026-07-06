@@ -29,10 +29,17 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "resources": ["icons/epub.ico"],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "windows/hooks.nsh"
+      }
+    },
     "fileAssociations": [
       {
         "ext": ["epub"],
-        "name": "EPUB",
+        "name": "Reed.epub",
         "description": "Buku elektronik EPUB",
         "mimeType": "application/epub+zip",
         "role": "Viewer"
