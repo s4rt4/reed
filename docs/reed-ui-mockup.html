@@ -1,0 +1,962 @@
+<!doctype html>
+<!--
+  ============================================================================
+  Reed — Mockup UI v1 (referensi untuk Reed Pro)
+  ============================================================================
+  Tujuan file ini: acuan visual & interaksi bagi siapa pun (manusia/agent) yang
+  membangun Reed Pro (PyQt6). Semua design token, nama kelas, ikon, dan logo
+  diambil APA ADANYA dari Reed v1 (Tauri 2 + React):
+
+    - Token & CSS   : src/styles.css          (disalin nyaris verbatim di bawah)
+    - Layar rak     : src/components/Library.tsx
+    - Layar baca    : src/components/Reader.tsx
+    - Ikon garis    : src/components/Reader.tsx:107-141 (stroke currentColor, BUKAN emoji)
+    - Logo          : src/assets/logo.svg     (di-inline sebagai <symbol id="reed-logo">)
+    - Ikon .epub    : src-tauri/icons/epub.ico (tidak bisa di-inline; lihat repo)
+    - Warna sorotan : src/lib/types.ts HIGHLIGHT_COLORS (sun/leaf/sky/rose)
+
+  Interaktif: klik sampul buku -> layar baca; tombol bilah atas membuka panel
+  (TOC kiri, penanda kanan, cari tengah, pengaturan kanan-atas); panel
+  pengaturan benar-benar mengubah tema/tipografi; seleksi teks di halaman
+  memunculkan palet sorot. Kontrol mockup (pojok kanan-bawah) BUKAN bagian UI
+  aplikasi — hanya alat bantu navigasi mockup + inspeksi token.
+
+  Data buku dan isi bacaan di sini fiktif, sekadar pengisi tampilan.
+  ============================================================================
+-->
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reed — Mockup UI v1</title>
+<style>
+/* ====== Reed — design tokens (identik dengan src/styles.css) ====== */
+:root {
+  --bg: #f7f5ec;
+  --surface: #fffdf4;
+  --surface-glass: rgba(255, 253, 244, 0.88);
+  --ink: #23261a;
+  --muted: #6f7260;
+  --accent: #6e763d;
+  --accent-deep: #333820;
+  --highlight: #fcffbb;
+  --line: #e2dfcd;
+  --shadow: 0 2px 6px rgba(51, 56, 32, 0.08), 0 12px 32px rgba(51, 56, 32, 0.1);
+  --radius: 10px;
+  --font-display: "Literata", Georgia, serif;
+  --font-ui: "Inter", "Segoe UI", system-ui, sans-serif;
+  /* Warna sorotan — src/lib/types.ts HIGHLIGHT_COLORS */
+  --hl-sun: #f2d64b;
+  --hl-leaf: #a9c46c;
+  --hl-sky: #86c3d7;
+  --hl-rose: #e59a9a;
+}
+
+:root[data-theme="sepia"] {
+  --bg: #f2e8d5;
+  --surface: #f9f1e0;
+  --surface-glass: rgba(249, 241, 224, 0.9);
+  --ink: #443a27;
+  --muted: #857659;
+  --accent: #7d6a3e;
+  --accent-deep: #4a3f26;
+  --line: #e0d3b8;
+}
+
+:root[data-theme="moss"] {
+  --bg: #15170f;
+  --surface: #1e2115;
+  --surface-glass: rgba(30, 33, 21, 0.9);
+  --ink: #e3e1cf;
+  --muted: #8f927c;
+  --accent: #aab26b;
+  --accent-deep: #d6dda0;
+  --line: #33371f;
+  --shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  font-family: var(--font-ui);
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+  transition: background 0.35s ease, color 0.35s ease;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* ====== Tombol umum ====== */
+.btn-primary {
+  background: var(--accent);
+  color: var(--highlight);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(51, 56, 32, 0.25);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(51, 56, 32, 0.32); }
+
+.btn-ghost {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.btn-ghost:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ====== Perpustakaan (Library.tsx) ====== */
+.library { height: 100vh; overflow-y: auto; padding: 36px 44px 56px; }
+
+.library-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin-bottom: 36px;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-logo { width: 52px; height: 52px; }
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 30px; line-height: 1.05; letter-spacing: -0.01em;
+}
+.brand-tag { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+.library-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: -14px 0 28px; }
+.lib-search {
+  flex: 1; min-width: 220px; max-width: 380px;
+  font: inherit; font-size: 13.5px; color: var(--ink);
+  background: var(--surface); border: 1.5px solid var(--line);
+  border-radius: 999px; padding: 9px 16px; transition: border-color 0.15s ease;
+}
+.lib-search:focus { outline: none; border-color: var(--accent); }
+.lib-search::placeholder { color: var(--muted); }
+.lib-sort { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.lib-sort select {
+  font: inherit; font-size: 13px; color: var(--ink);
+  background: var(--surface); border: 1.5px solid var(--line);
+  border-radius: 8px; padding: 7px 10px; cursor: pointer;
+}
+.watch-chip {
+  display: flex; align-items: center; gap: 4px; font-size: 13px;
+  background: var(--surface); border: 1.5px solid var(--line);
+  border-radius: 999px; padding: 6px 8px 6px 14px;
+}
+.watch-chip span { display: inline-flex; align-items: center; gap: 7px; }
+.watch-chip button {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; color: var(--muted); font-size: 12px;
+}
+.watch-chip button:hover { background: rgba(110, 118, 61, 0.14); color: var(--accent); }
+
+.book-grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 30px 24px;
+}
+.book-card { position: relative; }
+.book-cover-btn {
+  position: relative; display: block; width: 100%; aspect-ratio: 2 / 3;
+  border-radius: 6px; overflow: hidden;
+  /* Tumpukan halaman kertas di sisi kanan sampul */
+  box-shadow:
+    2px 2px 0 rgba(255, 255, 255, 0.55),
+    4px 4px 0 rgba(51, 56, 32, 0.12),
+    0 10px 24px rgba(51, 56, 32, 0.18);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+}
+:root[data-theme="moss"] .book-cover-btn {
+  box-shadow:
+    2px 2px 0 rgba(255, 255, 255, 0.08),
+    4px 4px 0 rgba(0, 0, 0, 0.4),
+    0 10px 24px rgba(0, 0, 0, 0.5);
+}
+.book-cover-btn:hover { transform: translateY(-5px) rotate(-0.6deg); }
+.book-cover { display: block; width: 100%; height: 100%; object-fit: cover; }
+.book-cover-placeholder {
+  display: flex; align-items: flex-end; padding: 14px 12px; height: 100%;
+  background: linear-gradient(160deg, var(--accent) 0%, #4a5029 60%, #333820 100%);
+}
+.book-cover-placeholder span {
+  font-family: var(--font-display);
+  font-weight: 600; font-size: 15px; line-height: 1.3; color: var(--highlight);
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+}
+.book-cover-sheen {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(51, 56, 32, 0.22) 0, transparent 7%);
+  pointer-events: none;
+}
+.book-card-actions {
+  position: absolute; top: 6px; right: 6px; display: flex; gap: 5px;
+  opacity: 0; transition: opacity 0.16s ease;
+}
+.book-card:hover .book-card-actions, .book-card-actions:focus-within { opacity: 1; }
+.book-action {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(35, 38, 26, 0.72); color: #fffdf4; font-size: 12px; line-height: 1;
+  display: grid; place-items: center; transition: background 0.16s ease;
+}
+.book-action:hover { background: rgba(35, 38, 26, 0.95); }
+.book-meta { margin-top: 12px; }
+.book-title {
+  font-family: var(--font-display);
+  font-weight: 600; font-size: 14.5px; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.book-author {
+  font-size: 12px; color: var(--muted); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.book-progress { height: 3px; border-radius: 2px; background: var(--line); margin-top: 9px; overflow: hidden; }
+.book-progress-fill { display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+.book-percent { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+/* ====== Pembaca (Reader.tsx) ====== */
+.reader { position: fixed; inset: 0; background: var(--bg); }
+
+.reader-stage { position: absolute; inset: 26px 64px 52px; }
+.book-content {
+  height: 100%;
+  font-family: var(--font-display);
+  font-size: calc(17px * var(--rd-size, 1));
+  line-height: var(--rd-lh, 1.6);
+  letter-spacing: calc(var(--rd-ls, 0) * 1em);
+  column-count: var(--rd-cols, 2);
+  column-gap: 56px;
+  overflow: hidden;
+  text-align: justify;
+  hyphens: auto;
+  user-select: text;
+  cursor: text;
+}
+.book-content.scrolled {
+  column-count: 1; overflow-y: auto; max-width: 680px; margin: 0 auto; padding-right: 8px;
+}
+.book-content h2 {
+  font-size: 1.5em; font-weight: 700; margin: 0 0 0.9em;
+  column-span: none; text-align: left;
+}
+.book-content p { margin: 0 0 1em; }
+.book-content p + p { text-indent: 1.4em; margin-top: -0.4em; }
+mark.hl-sun  { background: var(--hl-sun);  color: #23261a; border-radius: 2px; padding: 0 1px; }
+mark.hl-leaf { background: var(--hl-leaf); color: #23261a; border-radius: 2px; padding: 0 1px; }
+mark.hl-sky  { background: var(--hl-sky);  color: #23261a; border-radius: 2px; padding: 0 1px; }
+mark.hl-rose { background: var(--hl-rose); color: #23261a; border-radius: 2px; padding: 0 1px; }
+
+/* Bilah atas & bawah — kaca buram */
+.reader-topbar, .reader-bottombar {
+  position: absolute; left: 0; right: 0; z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface-glass); backdrop-filter: blur(10px);
+}
+.reader-topbar { top: 0; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+.reader-bottombar { bottom: 0; padding: 10px 20px; border-top: 1px solid var(--line); }
+.reader-titles {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  align-items: center; text-align: center;
+}
+.reader-book-title {
+  font-family: var(--font-display);
+  font-weight: 600; font-size: 14px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.reader-chapter {
+  font-size: 11.5px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.reader-actions { display: flex; gap: 6px; }
+.icon-btn {
+  min-width: 36px; height: 36px; padding: 0 10px; border-radius: 8px;
+  font-size: 16px; font-weight: 600;
+  display: grid; place-items: center; color: var(--ink);
+  transition: background 0.15s ease;
+}
+.icon-btn:hover { background: rgba(110, 118, 61, 0.14); }
+.icon-btn.active { background: var(--accent); color: var(--highlight); }
+
+/* Panah halaman */
+.page-arrow {
+  position: absolute; top: 50%; translate: 0 -50%; z-index: 15;
+  width: 46px; height: 84px; font-size: 34px; color: var(--muted);
+  border-radius: 12px; display: grid; place-items: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.page-arrow:hover { background: rgba(110, 118, 61, 0.12); color: var(--accent); }
+.page-arrow-left { left: 8px; }
+.page-arrow-right { right: 8px; }
+
+/* Slider progres — "batang reed" (thumb belah ketupat) */
+.stem-slider {
+  flex: 1; appearance: none; -webkit-appearance: none; height: 3px; border-radius: 2px;
+  background: linear-gradient(to right,
+    var(--accent) 0%, var(--accent) calc(var(--val, 0) * 1%),
+    var(--line) calc(var(--val, 0) * 1%), var(--line) 100%);
+  cursor: pointer;
+}
+.stem-slider::-webkit-slider-thumb {
+  appearance: none; -webkit-appearance: none;
+  width: 15px; height: 15px;
+  border-radius: 50% 50% 50% 4px; rotate: 45deg;
+  background: var(--accent); border: 2.5px solid var(--surface);
+  box-shadow: 0 1px 4px rgba(51, 56, 32, 0.4);
+  transition: transform 0.15s ease;
+}
+.stem-slider::-webkit-slider-thumb:hover { transform: scale(1.25); }
+.stem-slider::-moz-range-thumb {
+  width: 15px; height: 15px; border-radius: 50% 50% 50% 4px;
+  background: var(--accent); border: 2.5px solid var(--surface);
+}
+.reader-percent {
+  font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted);
+  min-width: 78px; text-align: right;
+}
+
+/* Panel scrim */
+.panel-scrim { position: absolute; inset: 0; z-index: 25; background: rgba(21, 23, 15, 0.25); }
+.panel-scrim.transparent { background: transparent; }
+
+/* Daftar isi — panel kiri geser masuk */
+.toc-panel {
+  position: absolute; top: 0; bottom: 0; left: 0; z-index: 30; width: 312px;
+  background: var(--surface); border-right: 1px solid var(--line);
+  box-shadow: var(--shadow); padding: 22px 14px 22px 20px; overflow-y: auto;
+  transition: translate 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.toc-panel h2 { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin-bottom: 14px; }
+.toc-panel ul { list-style: none; }
+.toc-item {
+  display: block; width: 100%; text-align: left;
+  font-size: 13.5px; line-height: 1.4; padding: 8px 10px; border-radius: 7px;
+  color: var(--ink); transition: background 0.13s ease;
+}
+.toc-item:hover { background: rgba(110, 118, 61, 0.12); }
+.toc-item.active { background: var(--accent); color: var(--highlight); font-weight: 600; }
+
+/* Panel pengaturan — kanan-atas */
+.settings-panel {
+  position: absolute; top: 58px; right: 14px; z-index: 30; width: 330px;
+  max-height: calc(100vh - 90px); overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.setting-row { display: flex; flex-direction: column; gap: 8px; }
+.setting-label {
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.theme-choices { display: flex; gap: 8px; }
+.theme-chip {
+  flex: 1; padding: 9px 0; border-radius: 8px; font-size: 13px; font-weight: 500;
+  border: 1.5px solid var(--line); transition: border-color 0.15s ease;
+}
+.theme-chip.active { border-color: var(--accent); font-weight: 600; box-shadow: 0 0 0 1px var(--accent); }
+.theme-chip.theme-paper { background: #f7f5ec; color: #26291c; }
+.theme-chip.theme-sepia { background: #f2e8d5; color: #443a27; }
+.theme-chip.theme-moss  { background: #15170f; color: #d9d8c6; }
+.segmented { display: flex; border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden; }
+.segmented button { flex: 1; padding: 8px 0; font-size: 13px; transition: background 0.15s ease, color 0.15s ease; }
+.segmented button + button { border-left: 1.5px solid var(--line); }
+.segmented button.active { background: var(--accent); color: var(--highlight); font-weight: 600; }
+.stepper { display: flex; align-items: center; gap: 12px; }
+.stepper button {
+  width: 44px; height: 34px; border: 1.5px solid var(--line); border-radius: 8px;
+  font-size: 14px; font-weight: 600; transition: border-color 0.15s ease, background 0.15s ease;
+}
+.stepper button:hover { border-color: var(--accent); background: rgba(110, 118, 61, 0.1); }
+.stepper span { flex: 1; text-align: center; font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 500; }
+
+/* Palet sorotan — muncul saat teks diseleksi */
+.highlight-bar {
+  position: absolute; bottom: 64px; left: 50%; translate: -50% 0; z-index: 22;
+  display: flex; align-items: center; gap: 9px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 9px 16px; box-shadow: var(--shadow);
+}
+.highlight-bar-label { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-right: 2px; }
+.hl-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid rgba(35, 38, 26, 0.18); transition: transform 0.14s ease;
+}
+.hl-dot:hover { transform: scale(1.2); }
+.hl-cancel {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 11px; color: var(--muted); margin-left: 2px;
+}
+.hl-cancel:hover { background: rgba(110, 118, 61, 0.14); }
+
+/* Panel penanda & sorotan — kanan geser masuk */
+.marks-panel {
+  position: absolute; top: 0; bottom: 0; right: 0; z-index: 30; width: 332px;
+  background: var(--surface); border-left: 1px solid var(--line);
+  box-shadow: var(--shadow); padding: 20px 18px; overflow-y: auto;
+  transition: translate 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.marks-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+.marks-panel h2 { font-family: var(--font-display); font-size: 17px; font-weight: 700; }
+.marks-panel h3 {
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 8px;
+}
+.marks-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.mark-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  border: 1.5px solid var(--line); border-radius: 9px; padding: 9px 10px;
+}
+.mark-jump { flex: 1; text-align: left; font-size: 13px; line-height: 1.45; color: var(--ink); }
+.mark-jump:hover { color: var(--accent); }
+.mark-delete {
+  width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%;
+  display: grid; place-items: center; font-size: 10px; color: var(--muted);
+}
+.mark-delete:hover { background: rgba(110, 118, 61, 0.14); color: var(--ink); }
+.hl-item .hl-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.hl-body { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hl-note {
+  font: inherit; font-size: 12.5px; line-height: 1.45; color: var(--ink);
+  background: var(--bg); border: 1.5px solid var(--line); border-radius: 7px;
+  padding: 6px 9px; resize: vertical; min-height: 30px;
+}
+.hl-note:focus { outline: none; border-color: var(--accent); }
+.hl-note::placeholder { color: var(--muted); }
+
+/* Panel pencarian — tengah-atas */
+.search-panel {
+  position: absolute; top: 58px; left: 50%; translate: -50% 0; z-index: 30;
+  width: min(520px, calc(100vw - 48px));
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.search-row { display: flex; gap: 10px; }
+.search-row input {
+  flex: 1; font: inherit; font-size: 14px; color: var(--ink);
+  background: var(--bg); border: 1.5px solid var(--line);
+  border-radius: 999px; padding: 9px 16px;
+}
+.search-row input:focus { outline: none; border-color: var(--accent); }
+.search-status { font-size: 12.5px; color: var(--muted); padding: 0 4px; }
+.search-results { list-style: none; max-height: 52vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.search-hit {
+  display: block; width: 100%; text-align: left;
+  font-size: 13px; line-height: 1.5; color: var(--ink);
+  padding: 8px 10px; border-radius: 8px; transition: background 0.13s ease;
+}
+.search-hit:hover { background: rgba(110, 118, 61, 0.12); }
+
+/* ====== Scrollbar ====== */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ====== Utilitas mockup (BUKAN bagian UI aplikasi) ====== */
+[hidden] { display: none !important; }
+.mock-chip {
+  position: fixed; bottom: 14px; right: 14px; z-index: 90;
+  display: flex; gap: 4px; align-items: center;
+  background: #1b1d12; color: #e3e1cf;
+  border-radius: 999px; padding: 5px 6px;
+  font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+}
+.mock-chip button { padding: 6px 12px; border-radius: 999px; color: inherit; font-size: 12px; }
+.mock-chip button:hover { background: rgba(255,255,255,0.12); }
+.mock-chip button.on { background: #aab26b; color: #15170f; font-weight: 600; }
+.mock-tokens {
+  position: fixed; bottom: 58px; right: 14px; z-index: 90; width: 320px;
+  background: #1b1d12; color: #e3e1cf; border-radius: 12px; padding: 14px 16px;
+  font: 11.5px/1.7 ui-monospace, Consolas, monospace;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.4); user-select: text;
+}
+.mock-tokens h3 { font: 600 12px var(--font-ui); margin-bottom: 6px; letter-spacing: 0.04em; }
+.mock-tokens .tk { display: flex; justify-content: space-between; gap: 10px; }
+.mock-tokens .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(255,255,255,0.2); }
+.mock-tokens p { margin-top: 8px; font-family: var(--font-ui); font-size: 11px; color: #8f927c; }
+</style>
+</head>
+<body>
+
+<!-- Logo Reed — disalin dari src/assets/logo.svg (gradient daun reed + siluet) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="reed-logo-grad" x1="256" y1="17.45" x2="256" y2="498.26" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6e763d"/>
+      <stop offset="1" stop-color="#333820"/>
+    </linearGradient>
+    <symbol id="reed-logo" viewBox="0 0 512 512">
+      <path fill="url(#reed-logo-grad)" d="M462.47,387.46h0c-6.43.22-10.8,6.62-8.65,12.68h0c2.32,6.56-2.95,13.3-9.87,12.65h0c-6.41-.61-11.55,5.18-10.2,11.47h0c1.46,6.8-4.63,12.82-11.41,11.28h0c-6.27-1.42-12.12,3.66-11.59,10.07h0c.58,6.93-6.23,12.12-12.76,9.73h0c-6.04-2.21-12.49,2.08-12.78,8.51h0c-.31,6.95-7.73,11.22-13.9,8.02h0c-5.71-2.97-12.66.47-13.76,6.81h0c-1.2,6.85-9.1,10.14-14.81,6.18h0c-5.28-3.67-12.61-1.15-14.52,4.99h0c-2.07,6.64-10.32,8.9-15.48,4.23h0c-4.77-4.32-12.36-2.76-15.04,3.09h0c-2.9,6.32-11.37,7.5-15.89,2.22h0c-4.18-4.89-11.91-4.32-15.31,1.14h0c-3.68,5.9-12.24,5.99-16.04.17h0c-3.52-5.39-11.26-5.8-15.33-.82h0c-4.41,5.38-12.91,4.37-15.93-1.89h0c-2.8-5.79-10.42-7.19-15.1-2.78h0c-5.06,4.77-13.36,2.69-15.56-3.91h0c-2.04-6.1-9.42-8.47-14.62-4.69h0c-5.63,4.09-13.59.96-14.93-5.87h0c-1.24-6.31-8.26-9.6-13.9-6.52h0c-6.1,3.33-13.6-.79-14.06-7.73h0c-.42-6.42-6.96-10.58-12.96-8.24h0c-6.48,2.53-13.39-2.52-12.96-9.46h0c.4-6.42-5.55-11.38-11.79-9.83h0c-6.75,1.68-12.96-4.21-11.64-11.04h0c1.22-6.32-4.05-12-10.44-11.26h0c-6.91.8-12.31-5.84-10.13-12.44h0c2.02-6.11-2.48-12.42-8.92-12.5h0c-6.95-.09-11.47-7.36-8.46-13.63h0c2.78-5.8-.87-12.63-7.24-13.54h0c-6.88-.98-10.43-8.77-6.65-14.6h0c3.5-5.4.75-12.64-5.45-14.35h0c-6.7-1.85-9.22-10.03-4.72-15.33h0c4.16-4.91,2.36-12.44-3.57-14.93h0c-6.41-2.69-7.86-11.13-2.72-15.81h0c4.76-4.33,3.93-12.04-1.63-15.27h0c-6.01-3.49-6.38-12.04-.68-16.03h0c5.27-3.69,5.44-11.44.33-15.35h0c-5.52-4.23-4.78-12.76,1.37-15.99h0c5.7-2.99,6.86-10.65,2.29-15.18h0c-4.93-4.9-3.11-13.27,3.41-15.68h0c6.03-2.23,8.16-9.68,4.22-14.77h0c-4.26-5.49-1.39-13.56,5.38-15.11h0c6.27-1.44,9.33-8.56,6.07-14.1h0c-3.53-5.99.35-13.62,7.27-14.3h0c6.4-.63,10.35-7.3,7.82-13.21h0c-2.73-6.39,2.09-13.47,9.04-13.25h0c6.43.2,11.2-5.91,9.45-12.1h0c-1.89-6.69,3.8-13.09,10.66-11.99h0c6.35,1.02,11.86-4.43,10.92-10.8h0c-1.02-6.88,5.44-12.49,12.11-10.53h0c6.17,1.82,12.33-2.88,12.21-9.31h0c-.13-6.95,6.99-11.7,13.36-8.89h0c5.89,2.59,12.6-1.28,13.3-7.67h0c.76-6.91,8.43-10.71,14.38-7.11h0c5.51,3.33,12.66.34,14.17-5.91h0c1.64-6.76,9.73-9.54,15.17-5.21h0c5.04,4,12.51,1.96,14.81-4.05h0c2.49-6.49,10.87-8.22,15.72-3.23h0c4.48,4.61,12.16,3.54,15.21-2.12h0c3.3-6.12,11.83-6.76,16-1.19h0c3.86,5.15,11.61,5.07,15.35-.16h0c4.05-5.65,12.6-5.19,16.02.86h0c3.17,5.6,10.86,6.51,15.25,1.81h0c4.74-5.09,13.16-3.54,15.78,2.9h0c2.42,5.96,9.94,7.85,14.89,3.74h0c5.35-4.44,13.5-1.83,15.28,4.9h0c1.64,6.22,8.85,9.05,14.29,5.61h0c5.88-3.72,13.63-.08,14.53,6.81h0c.83,6.38,7.62,10.11,13.46,7.4h0c6.3-2.94,13.53,1.66,13.54,8.61h0c.01,6.43,6.27,11,12.4,9.06h0c6.63-2.11,13.2,3.38,12.32,10.27h0c-.81,6.38,4.81,11.72,11.14,10.57h0c6.84-1.24,12.66,5.04,10.91,11.77h0c-1.62,6.23,3.27,12.23,9.7,11.91h0c6.94-.36,11.91,6.61,9.32,13.06h0c-2.4,5.97,1.68,12.55,8.1,13.05h0c6.93.54,10.97,8.08,7.57,14.15h0c-3.15,5.61.06,12.66,6.36,13.98h0c6.81,1.42,9.85,9.42,5.7,15h0c-3.84,5.16-1.56,12.57,4.52,14.67h0c6.57,2.28,8.56,10.6,3.73,15.6h0c-4.47,4.63-3.15,12.27,2.61,15.13h0c6.23,3.1,7.14,11.61,1.71,15.95h0c-5.02,4.02-4.69,11.76.65,15.34h0c5.78,3.87,5.59,12.43-.35,16.04h0c-5.5,3.34-6.16,11.07-1.32,15.3h0c5.24,4.58,3.96,13.04-2.4,15.87h0c-5.88,2.61-7.52,10.19-3.26,15.01h0c4.61,5.21,2.26,13.44-4.41,15.43h0c-6.16,1.84-8.77,9.14-5.15,14.46h0c3.9,5.75.52,13.62-6.34,14.74h0c-6.35,1.04-9.86,7.94-6.96,13.69h0c3.14,6.21-1.23,13.57-8.17,13.81Z"/>
+      <path fill="#fcffbb" d="M479.28,282.51l-.23-1.02c-1.05-4.74-5.67-7.79-10.44-6.85-28.27,5.55-120.09,26.09-178.33,67.9,28.57-27.27,80.02-62.28,165.87-79.54,5.43-1.09,8.58-6.8,6.61-11.97l-.37-.97c-1.74-4.54-6.75-6.87-11.33-5.25-27.16,9.63-114.99,43.37-166.48,93.25,24.27-31.15,70.05-73.31,152.45-102.95,5.21-1.87,7.5-7.98,4.78-12.8l-.51-.91c-2.38-4.23-7.69-5.81-11.98-3.54-25.46,13.5-107.4,59.73-151.04,116.6,19.45-34.37,58.58-82.77,135.75-124.14,4.88-2.62,6.25-8.99,2.86-13.37l-.64-.83c-2.98-3.84-8.45-4.62-12.37-1.75-23.21,17.08-97.51,74.8-132.36,137.44,14.22-36.84,45.84-90.45,116.13-142.66,4.44-3.3,4.87-9.81.87-13.64l-.75-.72c-3.51-3.36-9.04-3.34-12.49.08-19.14,18.98-77.28,79.66-105.44,142.31.04-2.29.04-4.6.01-6.92,11.77-37.18,36.62-86.17,88.6-138.19,3.91-3.92,3.38-10.41-1.13-13.62l-.85-.6c-3.96-2.82-9.43-1.98-12.34,1.91-14.11,18.85-53.03,73.55-75.1,131.15-.39-5.34-.91-10.69-1.54-16.03,9.77-33.07,27.67-72.39,59.59-115.42,3.3-4.45,1.82-10.8-3.11-13.31l-.93-.47c-4.33-2.21-9.62-.58-11.93,3.69-9.13,16.87-31.05,59.69-46.11,107.52-.7-4.39-1.48-8.73-2.28-13.03l.21-17.76c6.9-22.81,16.95-47.75,31.28-74.53,2.61-4.88.22-10.95-5.03-12.71l-.99-.33c-4.61-1.55-9.6.83-11.26,5.4-3.1,8.52-8.19,23.2-13.53,41.53l.56-48.02c.04-3.24-1.69-6.24-4.52-7.83-2.61-1.47-5.79-1.52-8.44-.14l-.18.09c-3.07,1.6-4.93,4.84-4.76,8.31l2.32,46.77c-5.25-17.95-10.23-32.32-13.29-40.71-1.66-4.57-6.66-6.95-11.26-5.4l-.99.33c-5.25,1.76-7.64,7.83-5.03,12.71,15.49,28.94,25.98,55.74,32.9,80.02l.2,4.05c-1.42,6.96-2.74,14.06-3.89,21.26-15.06-47.84-36.99-90.65-46.11-107.52-2.31-4.27-7.6-5.9-11.93-3.69l-.93.47c-4.93,2.51-6.41,8.86-3.11,13.31,31.92,43.02,49.81,82.35,59.59,115.42-.63,5.34-1.15,10.69-1.54,16.03-22.07-57.6-60.98-112.3-75.1-131.15-2.91-3.89-8.38-4.72-12.34-1.91l-.85.6c-4.51,3.21-5.04,9.71-1.13,13.62,51.98,52.01,76.83,101.01,88.6,138.19-.02,2.31-.02,4.62.01,6.92-28.15-62.65-86.3-123.34-105.44-142.31-3.45-3.42-8.98-3.45-12.49-.08l-.75.72c-3.99,3.83-3.57,10.34.87,13.64,70.29,52.22,101.91,105.82,116.13,142.66-34.85-62.65-109.15-120.37-132.36-137.44-3.91-2.88-9.39-2.1-12.37,1.75l-.64.83c-3.39,4.38-2.02,10.75,2.86,13.37,77.17,41.37,116.29,89.78,135.75,124.14-43.64-56.88-125.59-103.1-151.04-116.6-4.29-2.28-9.6-.7-11.98,3.54l-.51.91c-2.71,4.82-.42,10.93,4.78,12.8,82.39,29.64,128.18,71.8,152.45,102.95-51.49-49.88-139.32-83.62-166.48-93.25-4.58-1.62-9.6.71-11.33,5.25l-.37.97c-1.98,5.17,1.18,10.88,6.61,11.97,85.84,17.27,137.3,52.28,165.87,79.54-58.23-41.81-150.05-62.34-178.33-67.9-4.77-.94-9.39,2.11-10.44,6.85l-.23,1.02c-1.2,5.4,2.76,10.59,8.28,10.87,145.27,7.52,203.83,77.35,210.7,86.2.74,1.02,1.85,2.55,2.2,3.01.54.7,2.69,1.16,3.15.79.32-.26,1.69-1.89,2.52-2.88l.03.02s.17-.23.42-.57c.1-.13.18-.22.18-.22h0c6.27-8.16,64.64-78.78,210.8-86.35,5.53-.29,9.49-5.47,8.28-10.87Z"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ============================================================
+     LAYAR 1 — RAK BUKU (Library.tsx)
+     ============================================================ -->
+<main class="library" id="screen-library">
+  <header class="library-header">
+    <div class="brand">
+      <svg class="brand-logo" aria-hidden="true"><use href="#reed-logo"/></svg>
+      <div>
+        <h1 class="brand-name">Reed</h1>
+        <p class="brand-tag">Rak buku Anda</p>
+      </div>
+    </div>
+    <button class="btn-primary">Buka EPUB</button>
+  </header>
+
+  <div class="library-tools">
+    <input type="search" class="lib-search" placeholder="Cari judul atau penulis…">
+    <label class="lib-sort">
+      Urutkan
+      <select>
+        <option>Terakhir dibaca</option>
+        <option>Judul</option>
+        <option>Penulis</option>
+        <option>Progres</option>
+      </select>
+    </label>
+    <div class="watch-chip" title="~/Buku">
+      <span>
+        <!-- IcFolder — ikon garis (Library.tsx:47) -->
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        Buku
+      </span>
+      <button title="Pindai ulang folder">↻</button>
+      <button title="Berhenti memantau folder ini">✕</button>
+    </div>
+  </div>
+
+  <ul class="book-grid" id="book-grid"><!-- diisi JS --></ul>
+</main>
+
+<!-- ============================================================
+     LAYAR 2 — PEMBACA (Reader.tsx)
+     ============================================================ -->
+<div class="reader" id="screen-reader" hidden>
+
+  <div class="reader-stage" id="reader-stage">
+    <div class="book-content" id="book-content">
+      <h2>Bab 3 — Di Bawah Permukaan</h2>
+      <p>Pagi itu laut tidak beriak. Halima berdiri di ujung dermaga kayu yang sudah lapuk dimakan garam, memandangi <mark class="hl-sun">garis cakrawala yang seolah menyimpan semua jawaban yang tidak pernah ia berani tanyakan</mark> kepada siapa pun di kampung ini.</p>
+      <p>Kapal-kapal nelayan sudah berangkat sejak subuh. Yang tersisa hanya perahu kecil milik ayahnya, terikat pada tiang yang sama sejak dua puluh tahun lalu, mengangguk-angguk pelan mengikuti gelombang yang nyaris tak terlihat.</p>
+      <p>"Kau tidak akan menemukan apa-apa dengan berdiri di situ," suara Nenek Saodah terdengar dari belakang, serak seperti biasa, tetapi kali ini ada sesuatu yang lain — semacam kelelahan yang tidak pernah ia dengar sebelumnya.</p>
+      <p>Halima tidak menoleh. "Aku tidak sedang mencari apa-apa, Nek."</p>
+      <p>"Semua orang yang berdiri terlalu lama menghadap laut sedang mencari sesuatu. Kalau bukan yang hilang, ya yang belum datang." Nenek Saodah melangkah mendekat, tongkatnya mengetuk papan dermaga dengan irama yang sudah dihafal seluruh kampung. "Ibumu juga dulu begitu."</p>
+      <p>Untuk pertama kalinya dalam tiga tahun, ada yang menyebut ibunya tanpa berbisik. Kata itu jatuh di antara mereka seperti batu ke air tenang — dan Halima merasakan riaknya menjalar sampai ke dadanya, membangunkan pertanyaan-pertanyaan yang selama ini ia kubur bersama kotak kayu di bawah ranjangnya.</p>
+      <p>"Nek," katanya akhirnya, suaranya nyaris hilang ditelan angin, "ceritakan tentang malam itu."</p>
+      <p>Laut tetap tenang. Tetapi Halima tahu, di bawah permukaan yang diam itu, arus sedang bergerak — sebagaimana ia selalu bergerak, membawa segala yang tenggelam ke tempat-tempat yang tidak pernah kita duga.</p>
+    </div>
+  </div>
+
+  <!-- Bilah atas: kembali · judul/bab · aksi (ikon garis dari Reader.tsx:107-141) -->
+  <header class="reader-topbar">
+    <button class="icon-btn" id="btn-back" title="Kembali ke rak (Esc)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m11 18-6-6 6-6"/></svg>
+    </button>
+    <div class="reader-titles">
+      <span class="reader-book-title">Suara di Antara Gelombang</span>
+      <span class="reader-chapter">Bab 3 — Di Bawah Permukaan</span>
+    </div>
+    <div class="reader-actions">
+      <button class="icon-btn" id="btn-search" title="Cari dalam buku">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-bookmark" title="Tandai halaman ini">
+        <svg id="ic-bm" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12V21l-6-4.2L6 21z"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-marks" title="Penanda &amp; sorotan">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h9"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-tts" title="Bacakan mulai bab ini">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 9.5v5h3.5L13 19V5L7.5 9.5H4z" fill="currentColor" stroke="none"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-toc" title="Daftar isi">☰</button>
+      <button class="icon-btn" id="btn-settings" title="Pengaturan tampilan">Aa</button>
+    </div>
+  </header>
+
+  <!-- Panah navigasi halaman -->
+  <button class="page-arrow page-arrow-left" id="arrow-prev" title="Halaman sebelumnya (←)">‹</button>
+  <button class="page-arrow page-arrow-right" id="arrow-next" title="Halaman berikutnya (→)">›</button>
+
+  <!-- Palet sorotan — muncul saat teks diseleksi di halaman -->
+  <div class="highlight-bar" id="highlight-bar" hidden>
+    <span class="highlight-bar-label">Sorot:</span>
+    <button class="hl-dot" data-color="sun"  style="background:#f2d64b" aria-label="Sorot dengan warna sun"></button>
+    <button class="hl-dot" data-color="leaf" style="background:#a9c46c" aria-label="Sorot dengan warna leaf"></button>
+    <button class="hl-dot" data-color="sky"  style="background:#86c3d7" aria-label="Sorot dengan warna sky"></button>
+    <button class="hl-dot" data-color="rose" style="background:#e59a9a" aria-label="Sorot dengan warna rose"></button>
+    <button class="hl-cancel" id="hl-cancel" aria-label="Batalkan seleksi">✕</button>
+  </div>
+
+  <!-- Bilah bawah: slider progres "batang reed" + persen -->
+  <footer class="reader-bottombar">
+    <input type="range" class="stem-slider" id="stem-slider" min="0" max="1000" value="620" style="--val:62" aria-label="Posisi baca">
+    <span class="reader-percent" id="reader-percent">62%</span>
+  </footer>
+
+  <!-- Scrim panel -->
+  <div class="panel-scrim" id="panel-scrim" hidden></div>
+
+  <!-- Panel daftar isi (kiri) -->
+  <aside class="toc-panel" id="toc-panel" hidden>
+    <h2>Daftar isi</h2>
+    <ul>
+      <li><button class="toc-item">Sampul</button></li>
+      <li><button class="toc-item">Prolog</button></li>
+      <li><button class="toc-item">Bab 1 — Keberangkatan</button></li>
+      <li><button class="toc-item">Bab 2 — Kota Pelabuhan</button></li>
+      <li><button class="toc-item active">Bab 3 — Di Bawah Permukaan</button></li>
+      <li style="padding-left:14px"><button class="toc-item">Catatan Halima</button></li>
+      <li><button class="toc-item">Bab 4 — Arus Balik</button></li>
+      <li><button class="toc-item">Bab 5 — Muara</button></li>
+      <li><button class="toc-item">Epilog</button></li>
+    </ul>
+  </aside>
+
+  <!-- Panel penanda & sorotan (kanan) -->
+  <aside class="marks-panel" id="marks-panel" hidden>
+    <div class="marks-head">
+      <h2>Penanda &amp; sorotan</h2>
+      <button class="btn-ghost">Ekspor .md</button>
+    </div>
+    <h3>Penanda</h3>
+    <ul class="marks-list">
+      <li class="mark-item">
+        <button class="mark-jump">Bab 3 · ±42%</button>
+        <button class="mark-delete" aria-label="Hapus penanda">✕</button>
+      </li>
+    </ul>
+    <h3>Sorotan</h3>
+    <ul class="marks-list">
+      <li class="mark-item hl-item">
+        <span class="hl-swatch" style="background:#f2d64b"></span>
+        <div class="hl-body">
+          <button class="mark-jump">garis cakrawala yang seolah menyimpan semua jawaban yang tidak pernah ia berani tanyakan</button>
+          <textarea class="hl-note" rows="2">Motif "jawaban di cakrawala" — muncul lagi di Bab 5?</textarea>
+        </div>
+        <button class="mark-delete" aria-label="Hapus sorotan">✕</button>
+      </li>
+      <li class="mark-item hl-item">
+        <span class="hl-swatch" style="background:#86c3d7"></span>
+        <div class="hl-body">
+          <button class="mark-jump">Semua orang yang berdiri terlalu lama menghadap laut sedang mencari sesuatu.</button>
+          <textarea class="hl-note" rows="1" placeholder="Tambah catatan…"></textarea>
+        </div>
+        <button class="mark-delete" aria-label="Hapus sorotan">✕</button>
+      </li>
+    </ul>
+  </aside>
+
+  <!-- Panel pencarian (tengah-atas) -->
+  <div class="search-panel" id="search-panel" hidden>
+    <div class="search-row">
+      <input type="search" placeholder="Cari dalam buku… (Enter)" value="gelombang">
+      <button class="btn-primary">Cari</button>
+    </div>
+    <p class="search-status">3 hasil</p>
+    <ul class="search-results">
+      <li><button class="search-hit">…perahu kecil milik ayahnya mengangguk-angguk pelan mengikuti gelombang yang nyaris tak terlihat…</button></li>
+      <li><button class="search-hit">…suara gelombang malam itu berbeda, kata Nenek Saodah, seperti seseorang yang menahan tangis…</button></li>
+      <li><button class="search-hit">…di antara gelombang itulah ibumu terakhir terlihat, berdiri di buritan, melambai entah kepada siapa…</button></li>
+    </ul>
+  </div>
+
+  <!-- Panel pengaturan tampilan (kanan-atas) — fungsional di mockup ini -->
+  <div class="settings-panel" id="settings-panel" hidden>
+    <div class="setting-row">
+      <span class="setting-label">Tema</span>
+      <div class="theme-choices" id="theme-choices">
+        <button class="theme-chip theme-paper active" data-theme="paper">Kertas</button>
+        <button class="theme-chip theme-sepia" data-theme="sepia">Sepia</button>
+        <button class="theme-chip theme-moss" data-theme="moss">Lumut</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Ukuran huruf</span>
+      <div class="stepper">
+        <button id="fs-dec" aria-label="Perkecil huruf">A−</button>
+        <span id="fs-val">100%</span>
+        <button id="fs-inc" aria-label="Perbesar huruf">A+</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Jenis huruf</span>
+      <div class="segmented" id="font-seg">
+        <button class="active" data-font="book">Bawaan buku</button>
+        <button data-font="serif">Serif</button>
+        <button data-font="sans">Sans</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Jarak baris</span>
+      <div class="stepper">
+        <button id="lh-dec" aria-label="Rapatkan baris">−</button>
+        <span id="lh-val">1.6</span>
+        <button id="lh-inc" aria-label="Renggangkan baris">+</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Jarak huruf</span>
+      <div class="stepper">
+        <button id="ls-dec" aria-label="Rapatkan huruf">−</button>
+        <span id="ls-val">0.00 em</span>
+        <button id="ls-inc" aria-label="Renggangkan huruf">+</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Margin</span>
+      <div class="stepper">
+        <button id="mg-dec" aria-label="Persempit margin">−</button>
+        <span id="mg-val">0 px</span>
+        <button id="mg-inc" aria-label="Perlebar margin">+</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Mode baca</span>
+      <div class="segmented" id="flow-seg">
+        <button class="active" data-flow="paginated">Berhalaman</button>
+        <button data-flow="scrolled">Gulir</button>
+      </div>
+    </div>
+    <div class="setting-row" id="spread-row">
+      <span class="setting-label">Tata letak</span>
+      <div class="segmented" id="spread-seg">
+        <button data-spread="1">Satu halaman</button>
+        <button class="active" data-spread="2">Dua halaman</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     Kontrol mockup — BUKAN bagian UI aplikasi
+     ============================================================ -->
+<div class="mock-tokens" id="mock-tokens" hidden>
+  <h3>Design tokens — tema aktif</h3>
+  <div id="token-list"></div>
+  <p>Font display: Literata (fallback Georgia) · Font UI: Inter · Radius 10px · Pill 999px<br>
+  Sorotan: sun #f2d64b · leaf #a9c46c · sky #86c3d7 · rose #e59a9a<br>
+  Aset: src/assets/logo.svg · src-tauri/icons/epub.ico (ikon dokumen .epub) · icon.png (ikon app)</p>
+</div>
+<div class="mock-chip">
+  <span style="padding:0 6px;opacity:.55">MOCKUP</span>
+  <button id="mock-lib" class="on">Rak</button>
+  <button id="mock-read">Pembaca</button>
+  <button id="mock-tok">Token</button>
+</div>
+
+<script>
+/* ====== Data rak (fiktif) ====== */
+const cover = (bg, fg, title, author) =>
+  "data:image/svg+xml;utf8," + encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 300'>` +
+    `<rect width='200' height='300' fill='${bg}'/>` +
+    `<rect x='16' y='16' width='168' height='268' fill='none' stroke='${fg}' stroke-opacity='.45'/>` +
+    `<circle cx='100' cy='96' r='34' fill='none' stroke='${fg}' stroke-opacity='.6' stroke-width='2'/>` +
+    `<text x='100' y='178' text-anchor='middle' font-family='Georgia,serif' font-size='19' font-weight='700' fill='${fg}'>` +
+    title.map((l,i)=>`<tspan x='100' dy='${i?22:0}'>${l}</tspan>`).join("") + `</text>` +
+    `<text x='100' y='262' text-anchor='middle' font-family='Georgia,serif' font-size='12' fill='${fg}' fill-opacity='.8'>${author}</text>` +
+    `</svg>`);
+
+const BOOKS = [
+  { title: "Suara di Antara Gelombang", author: "Andini Prameswari", pct: 62, time: "3 j 24 m",
+    img: cover("#2c4a5e", "#e8eff2", ["Suara", "di Antara", "Gelombang"], "Andini Prameswari") },
+  { title: "Kebun Kata-Kata", author: "R. Mahendra", pct: 100, time: "7 j 02 m",
+    img: cover("#7a4a2b", "#f6ead8", ["Kebun", "Kata-Kata"], "R. Mahendra") },
+  { title: "Menjahit Langit", author: "Sari Wulandari", pct: 35, time: "1 j 48 m", img: null },
+  { title: "Rumah di Ujung Musim", author: "Bima Adyatma", pct: 12, time: "36 m", img: null },
+  { title: "Peta yang Tak Selesai", author: "L. Anggraini", pct: 0, time: "", img: null },
+  { title: "Percakapan dengan Hujan", author: "Tan Harja", pct: 78, time: "5 j 15 m",
+    img: cover("#3d5233", "#eef2e4", ["Percakapan", "dengan", "Hujan"], "Tan Harja") },
+];
+
+const pctLabel = p => p <= 0 ? "Belum dibaca" : p >= 99.5 ? "Selesai" : `${Math.round(p)}% dibaca`;
+
+document.getElementById("book-grid").innerHTML = BOOKS.map(b => `
+  <li class="book-card">
+    <button class="book-cover-btn" onclick="openReader()" aria-label="Baca ${b.title}">
+      ${b.img
+        ? `<img src="${b.img}" alt="" class="book-cover">`
+        : `<span class="book-cover book-cover-placeholder"><span>${b.title}</span></span>`}
+      <span class="book-cover-sheen" aria-hidden="true"></span>
+    </button>
+    <div class="book-card-actions">
+      <button class="book-action" title="Ubah judul &amp; penulis">✎</button>
+      <button class="book-action" title="Hapus dari rak (file tidak dihapus)">✕</button>
+    </div>
+    <div class="book-meta">
+      <h3 class="book-title">${b.title}</h3>
+      <p class="book-author">${b.author}</p>
+      <div class="book-progress" aria-hidden="true"><span class="book-progress-fill" style="width:${b.pct}%"></span></div>
+      <p class="book-percent">${pctLabel(b.pct)}${b.time ? " · " + b.time : ""}</p>
+    </div>
+  </li>`).join("");
+
+/* ====== Navigasi layar ====== */
+const $ = id => document.getElementById(id);
+const screens = { library: $("screen-library"), reader: $("screen-reader") };
+
+function show(which) {
+  screens.library.hidden = which !== "library";
+  screens.reader.hidden = which !== "reader";
+  $("mock-lib").classList.toggle("on", which === "library");
+  $("mock-read").classList.toggle("on", which === "reader");
+}
+window.openReader = () => show("reader");
+$("btn-back").onclick = () => { closePanels(); show("library"); };
+$("mock-lib").onclick = () => show("library");
+$("mock-read").onclick = () => show("reader");
+
+/* ====== Panel (eksklusif satu sama lain, scrim menutup) ====== */
+const panels = { toc: $("toc-panel"), marks: $("marks-panel"), search: $("search-panel"), settings: $("settings-panel") };
+const panelBtn = { toc: $("btn-toc"), marks: $("btn-marks"), search: $("btn-search"), settings: $("btn-settings") };
+
+function closePanels() {
+  for (const k in panels) { panels[k].hidden = true; panelBtn[k].classList.remove("active"); }
+  $("panel-scrim").hidden = true;
+}
+function togglePanel(name) {
+  const wasOpen = !panels[name].hidden;
+  closePanels();
+  if (!wasOpen) {
+    panels[name].hidden = false;
+    panelBtn[name].classList.add("active");
+    $("panel-scrim").hidden = false;
+    $("panel-scrim").classList.toggle("transparent", name === "search" || name === "settings");
+  }
+}
+for (const k in panelBtn) panelBtn[k].onclick = () => togglePanel(k);
+$("panel-scrim").onclick = closePanels;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closePanels(); });
+
+/* ====== Penanda halaman (ikon terisi saat aktif) ====== */
+$("btn-bookmark").onclick = () => {
+  const on = $("btn-bookmark").classList.toggle("active");
+  $("ic-bm").setAttribute("fill", on ? "currentColor" : "none");
+  $("btn-bookmark").title = on ? "Hapus penanda halaman ini" : "Tandai halaman ini";
+};
+$("btn-tts").onclick = () => $("btn-tts").classList.toggle("active");
+
+/* ====== Slider progres ====== */
+const slider = $("stem-slider");
+slider.oninput = () => {
+  const pct = Math.round(slider.value / 10);
+  slider.style.setProperty("--val", pct);
+  $("reader-percent").textContent = pct + "%";
+};
+function nudge(delta) {
+  slider.value = Math.max(0, Math.min(1000, +slider.value + delta * 20));
+  slider.oninput();
+  const c = $("book-content");
+  c.style.transition = "none"; c.style.opacity = "0.35";
+  requestAnimationFrame(() => { c.style.transition = "opacity .28s ease"; c.style.opacity = "1"; });
+}
+$("arrow-prev").onclick = () => nudge(-1);
+$("arrow-next").onclick = () => nudge(1);
+document.addEventListener("keydown", e => {
+  if (screens.reader.hidden) return;
+  if (e.key === "ArrowLeft") nudge(-1);
+  if (e.key === "ArrowRight") nudge(1);
+});
+
+/* ====== Pengaturan tampilan (fungsional) ====== */
+const content = $("book-content");
+const state = { fs: 100, lh: 1.6, ls: 0, mg: 0, cols: 2, flow: "paginated" };
+
+function applyState() {
+  content.style.setProperty("--rd-size", state.fs / 100);
+  content.style.setProperty("--rd-lh", state.lh);
+  content.style.setProperty("--rd-ls", state.ls);
+  content.style.setProperty("--rd-cols", state.flow === "paginated" ? state.cols : 1);
+  content.classList.toggle("scrolled", state.flow === "scrolled");
+  $("reader-stage").style.left = (64 + state.mg) + "px";
+  $("reader-stage").style.right = (64 + state.mg) + "px";
+  $("fs-val").textContent = state.fs + "%";
+  $("lh-val").textContent = state.lh.toFixed(1);
+  $("ls-val").textContent = state.ls.toFixed(2) + " em";
+  $("mg-val").textContent = state.mg + " px";
+  $("spread-row").style.display = state.flow === "paginated" ? "" : "none";
+}
+$("fs-dec").onclick = () => { state.fs = Math.max(80, state.fs - 10); applyState(); };
+$("fs-inc").onclick = () => { state.fs = Math.min(160, state.fs + 10); applyState(); };
+$("lh-dec").onclick = () => { state.lh = Math.max(1.3, +(state.lh - 0.1).toFixed(1)); applyState(); };
+$("lh-inc").onclick = () => { state.lh = Math.min(2.2, +(state.lh + 0.1).toFixed(1)); applyState(); };
+$("ls-dec").onclick = () => { state.ls = Math.max(0, +(state.ls - 0.01).toFixed(2)); applyState(); };
+$("ls-inc").onclick = () => { state.ls = Math.min(0.08, +(state.ls + 0.01).toFixed(2)); applyState(); };
+$("mg-dec").onclick = () => { state.mg = Math.max(0, state.mg - 24); applyState(); };
+$("mg-inc").onclick = () => { state.mg = Math.min(144, state.mg + 24); applyState(); };
+
+function wireSegment(id, attr, fn) {
+  const seg = $(id);
+  seg.querySelectorAll("button").forEach(btn => btn.onclick = () => {
+    seg.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    fn(btn.dataset[attr]);
+  });
+}
+wireSegment("flow-seg", "flow", v => { state.flow = v; applyState(); });
+wireSegment("spread-seg", "spread", v => { state.cols = +v; applyState(); });
+wireSegment("font-seg", "font", v => {
+  content.style.fontFamily = v === "sans" ? "var(--font-ui)" : "var(--font-display)";
+});
+
+/* Tema */
+$("theme-choices").querySelectorAll(".theme-chip").forEach(chip => chip.onclick = () => {
+  $("theme-choices").querySelectorAll(".theme-chip").forEach(c => c.classList.remove("active"));
+  chip.classList.add("active");
+  document.documentElement.dataset.theme = chip.dataset.theme;
+  renderTokens();
+});
+
+/* ====== Palet sorot saat seleksi teks ====== */
+document.addEventListener("mouseup", () => {
+  if (screens.reader.hidden) return;
+  const sel = window.getSelection();
+  const ok = sel && !sel.isCollapsed && content.contains(sel.anchorNode);
+  $("highlight-bar").hidden = !ok;
+});
+$("hl-cancel").onclick = () => { window.getSelection().removeAllRanges(); $("highlight-bar").hidden = true; };
+document.querySelectorAll(".hl-dot").forEach(dot => dot.onclick = () => {
+  const sel = window.getSelection();
+  if (sel && !sel.isCollapsed) {
+    try {
+      const mark = document.createElement("mark");
+      mark.className = "hl-" + dot.dataset.color;
+      sel.getRangeAt(0).surroundContents(mark);
+    } catch { /* seleksi lintas-elemen — dilewati di mockup */ }
+    sel.removeAllRanges();
+  }
+  $("highlight-bar").hidden = true;
+});
+
+/* ====== Panel token (alat mockup) ====== */
+const TOKENS = ["--bg","--surface","--ink","--muted","--accent","--accent-deep","--line","--highlight"];
+function renderTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  $("token-list").innerHTML = TOKENS.map(t => {
+    const v = cs.getPropertyValue(t).trim();
+    return `<div class="tk"><span><span class="sw" style="background:${v}"></span>${t}</span><span>${v}</span></div>`;
+  }).join("");
+}
+$("mock-tok").onclick = () => {
+  const p = $("mock-tokens");
+  p.hidden = !p.hidden;
+  $("mock-tok").classList.toggle("on", !p.hidden);
+  if (!p.hidden) renderTokens();
+};
+
+applyState();
+</script>
+</body>
+</html>
